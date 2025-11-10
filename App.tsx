@@ -68,7 +68,7 @@ export default function App() {
         setError(null);
         setGeneratedEmails([]);
         if (!isValidEmail) {
-            setError("الرجاء إدخال بريد إلكتروني صالح. (Please enter a valid email address.)");
+            setError("Please enter a valid email address.");
             return;
         }
 
@@ -198,12 +198,11 @@ ${emailListItems}
                         <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
                            Gmail Dot Trick Email Generator
                         </h1>
-                        <p className="text-gray-400 mt-2">مولد البريد الإلكتروني البديل</p>
                     </div>
 
                     <div className="space-y-4">
                         <label htmlFor="email-input" className="block text-sm font-medium text-gray-400">
-                          البريد الإلكتروني الأساسي (Primary Email)
+                          Primary Email
                         </label>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-grow">
@@ -231,12 +230,12 @@ ${emailListItems}
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        جاري التوليد...
+                                        Loading...
                                     </>
                                 ) : (
                                     <>
                                         <SparklesIcon className="w-5 h-5" />
-                                        توليد (Generate)
+                                        Generate
                                     </>
                                 )}
                             </button>
@@ -248,14 +247,14 @@ ${emailListItems}
                         <div className="pt-4 space-y-4 animate-fade-in">
                             <div className="flex justify-between items-center pb-2 border-b border-gray-700">
                                 <h2 className="text-lg font-semibold text-gray-300">
-                                    {generatedEmails.length} <span className="text-gray-400">ايميلات تم توليدها</span>
+                                    {generatedEmails.length} <span className="text-gray-400">Generated Emails</span>
                                 </h2>
                                 <div className="flex gap-2">
                                      <button
                                         onClick={handleCopyAll}
                                         className="text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-2 px-3 rounded-md transition-colors flex items-center gap-2"
                                     >
-                                        {copiedAll ? <><CheckIcon className="text-green-400"/> تم النسخ</> : <><CopyIcon /> نسخ الكل</>}
+                                        {copiedAll ? <><CheckIcon className="text-green-400"/> Selected</> : <><CopyIcon /> Select All</>}
                                     </button>
                                     
                                     <div className="relative" ref={downloadMenuRef}>
@@ -277,7 +276,7 @@ ${emailListItems}
                                                             className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
                                                             role="menuitem"
                                                         >
-                                                           تنزيل كملف TXT
+                                                          Download as TXT
                                                         </button>
                                                     </li>
                                                     <li>
@@ -286,7 +285,7 @@ ${emailListItems}
                                                             className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
                                                             role="menuitem"
                                                         >
-                                                            تنزيل كملف HTML
+                                                            Download as HTML
                                                         </button>
                                                     </li>
                                                 </ul>
