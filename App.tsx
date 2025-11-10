@@ -265,7 +265,7 @@ ${emailListItems}
                                             aria-expanded={isDownloadMenuOpen}
                                         >
                                             <DownloadIcon className="w-4 h-4" />
-                                            تحميل
+                                            Download
                                         </button>
                                         {isDownloadMenuOpen && (
                                             <div className="absolute right-0 mt-2 w-48 origin-top-right bg-gray-800 border border-gray-600 rounded-md shadow-lg z-10 animate-fade-in-fast">
@@ -297,7 +297,7 @@ ${emailListItems}
                                         onClick={handleClear}
                                         className="text-sm bg-red-800/50 hover:bg-red-700/50 text-red-300 font-medium py-2 px-3 rounded-md transition-colors"
                                     >
-                                        مسح
+                                        Delete
                                     </button>
                                 </div>
                             </div>
