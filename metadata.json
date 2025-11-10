@@ -1,0 +1,5 @@
+{
+  "name": "Gmail Dot Trick Email Generator",
+  "description": "A tool to generate all possible email aliases from a primary Gmail address by inserting dots into the username. This leverages the Gmail feature where dots in the username are ignored.",
+  "requestFramePermissions": []
+}
