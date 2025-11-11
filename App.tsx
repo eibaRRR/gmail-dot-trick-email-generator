@@ -32,6 +32,7 @@ const DownloadIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" 
     </svg>
   );
 
+// Limite pour la génération "TOUT"
 const MAX_USERNAME_LENGTH = 16;
 
 // --- Main App Component ---
@@ -45,8 +46,11 @@ export default function App() {
     const [copiedAll, setCopiedAll] = useState(false);
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
     
-    const downloadMenuRef = useRef<HTMLDivElement>(null);
+    // NOUVEL ÉTAT POUR LA QUANTITÉ
     const [quantity, setQuantity] = useState<string>('10'); 
+    
+    const downloadMenuRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
@@ -64,15 +68,69 @@ export default function App() {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }, [email]);
 
+    // --- FONCTION 1 : GÉNÉRER TOUT (LOGIQUE ORIGINALE) ---
     const handleGenerate = useCallback(() => {
         setError(null);
         setGeneratedEmails([]);
         if (!isValidEmail) {
-            setError("Please enter a valid email address.");
+            setError("الرجاء إدخال بريد إلكتروني صالح. (Please enter a valid email address.)");
             return;
         }
 
-       const numToGenerate = Number(quantity);
+        setIsLoading(true);
+        // Use setTimeout to allow UI to update before blocking with generation
+        setTimeout(() => {
+            try {
+                const [usernameWithDots, domain] = email.split('@');
+                const username = usernameWithDots.replace(/\./g, '');
+
+                if (username.length > MAX_USERNAME_LENGTH) {
+                    throw new Error(`Username is too long (>${MAX_USERNAME_LENGTH} chars). Generation might crash the browser.`);
+                }
+                
+                if(username.length < 2) {
+                     throw new Error(`Username is too short to generate variations.`);
+                }
+
+                const variations = new Set<string>();
+                const n = username.length;
+                const insertionPoints = n - 1;
+                const permutationsCount = 1 << insertionPoints;
+
+                for (let i = 0; i < permutationsCount; i++) {
+                    let newUsername = username[0];
+                    for (let j = 0; j < insertionPoints; j++) {
+                        if ((i >> j) & 1) {
+                            newUsername += '.';
+                        }
+                        newUsername += username[j + 1];
+                    }
+                    variations.add(`${newUsername}@${domain}`);
+                }
+
+                variations.add(email); // Add original
+                variations.add(`${username}@${domain}`); // Add dot-less version
+
+                setGeneratedEmails(Array.from(variations).sort());
+            } catch (e: any) {
+                setError(e.message);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 50);
+
+    }, [email, isValidEmail]);
+
+    // --- FONCTION 2 : GÉNÉRER ALÉATOIREMENT (NOUVELLE LOGIQUE) ---
+    const handleGenerateRandom = useCallback(() => {
+        setError(null);
+        setGeneratedEmails([]);
+        if (!isValidEmail) {
+            setError("الرجاء إدخال بريد إلكتروني صالح. (Please enter a valid email address.)");
+            return;
+        }
+
+        const numToGenerate = Number(quantity);
         if (numToGenerate <= 0) {
             setError("La quantité doit être supérieure à 0.");
             return;
@@ -102,10 +160,10 @@ export default function App() {
                                     Infinity : 
                                     (1 << insertionPoints);
 
-                const finalAmountToGenerate = Math.min(numToGenerate, maxPossible);
+                const finalAmountToGenerate = Math.min(numToGenerate, maxPossible + 2); // +2 pour l'original et le sans-point
 
-                if (numToGenerate > maxPossible) {
-                    setError(`Le nom d'utilisateur est trop court, ${maxPossible} variations max. Génération en cours...`);
+                if (numToGenerate > maxPossible + 2) {
+                    setError(`Le nom d'utilisateur est trop court, ${maxPossible + 2} variations max. Génération en cours...`);
                 }
 
                 // Boucle TANT QUE nous n'avons pas assez d'e-mails
@@ -130,7 +188,8 @@ export default function App() {
             }
         }, 50);
 
-    }, [email, isValidEmail]);
+    }, [email, isValidEmail, quantity]); // <-- DÉPENDANCE "quantity" AJOUTÉE
+
 
     const handleCopy = useCallback((text: string, index: number) => {
         navigator.clipboard.writeText(text);
@@ -214,11 +273,12 @@ ${emailListItems}
                         <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">
                            Gmail Dot Trick Email Generator
                         </h1>
+                        <p className="text-gray-400 mt-2">مولد البريد الإلكتروني البديل</p>
                     </div>
 
                     <div className="space-y-4">
                         <label htmlFor="email-input" className="block text-sm font-medium text-gray-400">
-                          Primary Email
+                          البريد الإلكتروني الأساسي (Primary Email)
                         </label>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-grow">
@@ -230,12 +290,11 @@ ${emailListItems}
                                     id="email-input"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                                     placeholder="example@gmail.com"
                                     className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 />
                             </div>
-                            {/* AJOUTEZ CE BLOC POUR LA QUANTITÉ */}
+                            {/* BLOC POUR LA QUANTITÉ */}
                             <div className="relative">
                                 <input
                                     type="number"
@@ -255,10 +314,17 @@ ${emailListItems}
                             <button
                                 onClick={handleGenerate}
                                 disabled={!isValidEmail || isLoading}
-                                className="flex-grow ..." // Gardez les classes actuelles
+                                // CLASSES CSS RESTAURÉES
+                                className="flex-grow flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                             >
                                 {isLoading ? (
-                                    <>...</> // Gardez le spinner
+                                    <>
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        جاري التوليد...
+                                    </>
                                 ) : (
                                     <>
                                         <SparklesIcon className="w-5 h-5" />
@@ -269,16 +335,19 @@ ${emailListItems}
 
                             {/* NOUVEAU BOUTON (Générer N Aléatoirement) */}
                             <button
-                                onClick={handleGenerateRandom} // Nous allons créer cette fonction
+                                onClick={handleGenerateRandom} // Appelle la NOUVELLE fonction
                                 disabled={!isValidEmail || isLoading || Number(quantity) <= 0}
                                 className="flex-grow flex items-center justify-center gap-2 bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
                             >
                                 {isLoading ? (
-                                    <> <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg> 
-                                    </> // Vous pouvez aussi mettre le spinner ici
+                                    <> 
+                                        {/* SPINNER CORRIGÉ */}
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        جاري التوليد...
+                                    </>
                                 ) : (
                                     <>
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -298,14 +367,14 @@ ${emailListItems}
                         <div className="pt-4 space-y-4 animate-fade-in">
                             <div className="flex justify-between items-center pb-2 border-b border-gray-700">
                                 <h2 className="text-lg font-semibold text-gray-300">
-                                    {generatedEmails.length} <span className="text-gray-400">Generated Emails</span>
+                                    {generatedEmails.length} <span className="text-gray-400">ايميلات تم توليدها</span>
                                 </h2>
                                 <div className="flex gap-2">
                                      <button
                                         onClick={handleCopyAll}
                                         className="text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-2 px-3 rounded-md transition-colors flex items-center gap-2"
                                     >
-                                        {copiedAll ? <><CheckIcon className="text-green-400"/> Selected</> : <><CopyIcon /> Select All</>}
+                                        {copiedAll ? <><CheckIcon className="text-green-400"/> تم النسخ</> : <><CopyIcon /> نسخ الكل</>}
                                     </button>
                                     
                                     <div className="relative" ref={downloadMenuRef}>
@@ -316,7 +385,7 @@ ${emailListItems}
                                             aria-expanded={isDownloadMenuOpen}
                                         >
                                             <DownloadIcon className="w-4 h-4" />
-                                            Download
+                                            تحميل
                                         </button>
                                         {isDownloadMenuOpen && (
                                             <div className="absolute right-0 mt-2 w-48 origin-top-right bg-gray-800 border border-gray-600 rounded-md shadow-lg z-10 animate-fade-in-fast">
@@ -327,7 +396,7 @@ ${emailListItems}
                                                             className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
                                                             role="menuitem"
                                                         >
-                                                          Download as TXT
+                                                           تنزيل كملف TXT
                                                         </button>
                                                     </li>
                                                     <li>
@@ -336,7 +405,7 @@ ${emailListItems}
                                                             className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
                                                             role="menuitem"
                                                         >
-                                                            Download as HTML
+                                                            تنزيل كملف HTML
                                                         </button>
                                                     </li>
                                                 </ul>
@@ -348,7 +417,7 @@ ${emailListItems}
                                         onClick={handleClear}
                                         className="text-sm bg-red-800/50 hover:bg-red-700/50 text-red-300 font-medium py-2 px-3 rounded-md transition-colors"
                                     >
-                                        Delete
+                                        مسح
                                     </button>
                                 </div>
                             </div>
