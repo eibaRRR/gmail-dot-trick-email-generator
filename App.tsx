@@ -46,7 +46,7 @@ export default function App() {
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
     
     const downloadMenuRef = useRef<HTMLDivElement>(null);
-
+    const [quantity, setQuantity] = useState<string>('10'); 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
@@ -72,39 +72,55 @@ export default function App() {
             return;
         }
 
+       const numToGenerate = Number(quantity);
+        if (numToGenerate <= 0) {
+            setError("La quantité doit être supérieure à 0.");
+            return;
+        }
+
         setIsLoading(true);
-        // Use setTimeout to allow UI to update before blocking with generation
+        // Use setTimeout pour laisser l'UI se mettre à jour
         setTimeout(() => {
             try {
                 const [usernameWithDots, domain] = email.split('@');
                 const username = usernameWithDots.replace(/\./g, '');
+                const n = username.length;
 
-                if (username.length > MAX_USERNAME_LENGTH) {
-                    throw new Error(`Username is too long (>${MAX_USERNAME_LENGTH} chars). Generation might crash the browser.`);
-                }
-                
-                if(username.length < 2) {
+                if (n < 2) {
                      throw new Error(`Username is too short to generate variations.`);
                 }
-
+                
+                // --- Logique de génération aléatoire ---
                 const variations = new Set<string>();
-                const n = username.length;
-                const insertionPoints = n - 1;
-                const permutationsCount = 1 << insertionPoints;
+                variations.add(email); // Ajouter l'original
+                variations.add(`${username}@${domain}`); // Ajouter la version sans points
 
-                for (let i = 0; i < permutationsCount; i++) {
+                // Calculer le max possible pour ne pas boucler à l'infini
+                const insertionPoints = n - 1;
+                // (Attention: 1 << 30 déborde en JS. Limiter à 30 insertion points)
+                const maxPossible = (insertionPoints > 30) ? 
+                                    Infinity : 
+                                    (1 << insertionPoints);
+
+                const finalAmountToGenerate = Math.min(numToGenerate, maxPossible);
+
+                if (numToGenerate > maxPossible) {
+                    setError(`Le nom d'utilisateur est trop court, ${maxPossible} variations max. Génération en cours...`);
+                }
+
+                // Boucle TANT QUE nous n'avons pas assez d'e-mails
+                while (variations.size < finalAmountToGenerate) {
                     let newUsername = username[0];
                     for (let j = 0; j < insertionPoints; j++) {
-                        if ((i >> j) & 1) {
+                        // Décision aléatoire (50% de chance) d'ajouter un point
+                        if (Math.random() > 0.5) {
                             newUsername += '.';
                         }
                         newUsername += username[j + 1];
                     }
                     variations.add(`${newUsername}@${domain}`);
                 }
-
-                variations.add(email); // Add original
-                variations.add(`${username}@${domain}`); // Add dot-less version
+                // --- Fin de la logique ---
 
                 setGeneratedEmails(Array.from(variations).sort());
             } catch (e: any) {
@@ -219,27 +235,62 @@ ${emailListItems}
                                     className="w-full bg-gray-900/50 border border-gray-600 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 />
                             </div>
+                            {/* AJOUTEZ CE BLOC POUR LA QUANTITÉ */}
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    id="quantity-input"
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(e.target.value)}
+                                    min="1"
+                                    className="w-full sm:w-24 bg-gray-900/50 border border-gray-600 rounded-lg py-3 px-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                />
+                                <label htmlFor="quantity-input" className="absolute -top-2 left-3 bg-gray-800/50 backdrop-blur-sm px-1 text-xs text-gray-400">Quantité</label>
+                            </div>
+                        </div>
+
+                        {/* Les boutons */}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            {/* Bouton original (Générer tout) */}
                             <button
                                 onClick={handleGenerate}
                                 disabled={!isValidEmail || isLoading}
-                                className="flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                                className="flex-grow ..." // Gardez les classes actuelles
                             >
                                 {isLoading ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Loading...
-                                    </>
+                                    <>...</> // Gardez le spinner
                                 ) : (
                                     <>
                                         <SparklesIcon className="w-5 h-5" />
-                                        Generate
+                                        Générer Tout
+                                    </>
+                                )}
+                            </button>
+
+                            {/* NOUVEAU BOUTON (Générer N Aléatoirement) */}
+                            <button
+                                onClick={handleGenerateRandom} // Nous allons créer cette fonction
+                                disabled={!isValidEmail || isLoading || Number(quantity) <= 0}
+                                className="flex-grow flex items-center justify-center gap-2 bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
+                            >
+                                {isLoading ? (
+                                    <> <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg> 
+                                    </> // Vous pouvez aussi mettre le spinner ici
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0l3.181-3.183m-4.991-4.992-3.182-3.182a8.25 8.25 0 0 0-11.667 0L2.985 14.652m9.007-9.007H10.5" />
+                                        </svg>
+                                        Générer {Number(quantity) > 0 ? quantity : ''} Aléatoirement
                                     </>
                                 )}
                             </button>
                         </div>
+                        {/* Fin des boutons */}
+
                         {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                     </div>
 
